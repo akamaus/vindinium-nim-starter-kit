@@ -3,10 +3,7 @@ import json
 
 import seq2d
 
-type Dir = enum
-     North, South, West, East
-
-type Tile = enum
+type Tile* = enum
   IMPASS,
   EMPTY,
   HERO_1,
@@ -20,16 +17,19 @@ type Tile = enum
   MINE_4,
   TAVERN
 
-type Hero = object
+type Hero* = object
      name: string
      elo: int
 
-type Map = object
+type Map* = object
      turn, maxTurns: int
      heroes: array[1..4, Hero]
      grid: Seq2D[Tile]
 
-const all_dirs = [ North, South, West, East ]
+type Dir* = enum
+     Stay, North, South, West, East
+
+const allDirs* = [ Stay, North, South, West, East ]
 
 const str_tile = @{ "##": IMPASS, "  ": EMPTY, "[]": TAVERN, "$-": MINE_0, "$1": MINE_1, "$2": MINE_2, "$3": MINE_3, "$4": MINE_4, "@1": HERO_1, "@2": HERO_2, "@3": HERO_3, "@4": HERO_4 }
 
@@ -103,31 +103,32 @@ proc loadMap(path: string): Map =
 #
 # Server communications
 #
+
+type Decide* = proc(m:Map):Dir
+
+type Bot* = object
+     name*: string
+     key*: string
+     decide*: Decide
+
 const train_url = "http://vindinium.org/api/training"
 
 import httpclient
 
-proc run_training(key: string) =
-  echo ("key=" & key)
-
+proc run_training*(bot: Bot) =
   var finished = false
   var game_url = train_url
   var params = "&map=m1&turns=5"
   while not finished:
     let js_str = postContent(url = game_url,
                              extraHeaders = "Content-Type: application/x-www-form-urlencoded",
-                             body = "key=" & key & params )
+                             body = "key=" & bot.key & params )
     let js = json.parseJson(js_str)
     echo js_str
     let m = parseMap(js)
     game_url = js["playUrl"].getStr()
     m.grid.Print(printTile)
-    params="&dir=Stay"
+    let dir = bot.decide(m)
+    params="&dir=" & $dir
     finished = m.turn >= m.maxTurns
 
-#let js_path = paramStr(1)
-
-#let m = parseMap(js_path)
-#m.grid.Print(printTile)
-
-run_training(readFile("nymph.key"))
