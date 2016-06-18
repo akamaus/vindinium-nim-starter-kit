@@ -25,6 +25,7 @@ type Hero = object
      elo: int
 
 type Map = object
+     turn, maxTurns: int
      heroes: array[1..4, Hero]
      grid: Seq2D[Tile]
 
@@ -65,12 +66,17 @@ proc printTile(tile: Tile): string =
 
 proc parseHero(node: JsonNode) : Hero =
      result = Hero(name: node["name"].getStr(),
-                   elo: (int)node["elo"].getNum())
+                   elo: if node.hasKey("elo"):
+                           (int)node["elo"].getNum()
+                        else: 0 )
 
-proc parseMap(js_path: string) : Map =
-     let js = parseFile(js_path)
+proc parseMap(js: JsonNode) : Map =
      let g = js["game"]
      var map : Map
+
+     map.turn = int(g["turn"].getNum())
+     map.maxTurns = int(g["maxTurns"].getNum())
+
      for i in 1..4:
          map.heroes[i] = parseHero(g["heroes"][i-1])
 
@@ -85,15 +91,43 @@ proc parseMap(js_path: string) : Map =
      var k = 0
      for x in 0..num_cols-1:
          for y in 0..num_rows-1:
-             map.grid.Set(x,y, parseTile(tiles[k..k+1]))
+             map.grid[x,y] = parseTile(tiles[k..k+1])
              k = k + 2
 
      return map
 
+proc loadMap(path: string): Map =
+  let js = json.parseFile(path)
+  result = parseMap(js)
 
-let js_path = paramStr(1)
+#
+# Server communications
+#
+const train_url = "http://vindinium.org/api/training"
 
-let m = parseMap(js_path)
-m.grid.Print(printTile)
+import httpclient
 
-echo "map is", $m
+proc run_training(key: string) =
+  echo ("key=" & key)
+
+  var finished = false
+  var game_url = train_url
+  var params = "&map=m1&turns=5"
+  while not finished:
+    let js_str = postContent(url = game_url,
+                             extraHeaders = "Content-Type: application/x-www-form-urlencoded",
+                             body = "key=" & key & params )
+    let js = json.parseJson(js_str)
+    echo js_str
+    let m = parseMap(js)
+    game_url = js["playUrl"].getStr()
+    m.grid.Print(printTile)
+    params="&dir=Stay"
+    finished = m.turn >= m.maxTurns
+
+#let js_path = paramStr(1)
+
+#let m = parseMap(js_path)
+#m.grid.Print(printTile)
+
+run_training(readFile("nymph.key"))
