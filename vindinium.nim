@@ -17,17 +17,22 @@ type Tile* = enum
   MINE_4,
   TAVERN
 
+type Pos* = object
+    x*,y* :int
+
 type Hero* = object
-     name: string
-     elo: int
+    name*: string
+    elo*: int
+    pos*, spawnPos*: Pos
+    lastDir: string
 
 type Map* = object
-     turn, maxTurns: int
-     heroes: array[1..4, Hero]
-     grid: Seq2D[Tile]
+    turn*, maxTurns*: int
+    heroes*: array[1..4, Hero]
+    grid*: Seq2D[Tile]
 
 type Dir* = enum
-     Stay, North, South, West, East
+  Stay, North, South, West, East
 
 const allDirs* = [ Stay, North, South, West, East ]
 
@@ -64,18 +69,38 @@ proc printTile(tile: Tile): string =
      of HERO_3: result = "@3"
      of HERO_4: result = "@4"
 
-proc parseHero(node: JsonNode) : Hero =
-     result = Hero(name: node["name"].getStr(),
-                   elo: if node.hasKey("elo"):
-                           (int)node["elo"].getNum()
-                        else: 0 )
+import macros
+macro stringify(n: expr): string =
+  result = newNimNode(nnkStmtList, n)
+  result.add(toStrLit(n))
+
+template parse_int(obj: untyped, field: untyped, node: JsonNode) =
+  obj.field = int(node[stringify(field)].getNum())
+
+template parse_str(obj: untyped, field: untyped, node: JsonNode) =
+  obj.field = node[stringify(field)].getStr()
+
+proc parsePos(node:JsonNode): Pos =
+  parse_int(result, x, node)
+  parse_int(result, y, node)
+
+proc parseHero(node: JsonNode): Hero =
+  parse_str(result, name, node)
+  if node.hasKey("elo"):
+    parse_int(result, elo, node)
+  if node.hasKey("lastDir"):
+    parse_str(result, lastDir, node)
+  else:
+    result.lastDir = ""
+  result.pos = parsePos(node["pos"])
+  result.spawnPos = parsePos(node["spawnPos"])
 
 proc parseMap(js: JsonNode) : Map =
      let g = js["game"]
      var map : Map
 
-     map.turn = int(g["turn"].getNum())
-     map.maxTurns = int(g["maxTurns"].getNum())
+     parse_int(map, turn, g)
+     parse_int(map, maxTurns, g)
 
      for i in 1..4:
          map.heroes[i] = parseHero(g["heroes"][i-1])
@@ -128,6 +153,7 @@ proc run_training*(bot: Bot) =
     let m = parseMap(js)
     game_url = js["playUrl"].getStr()
     m.grid.Print(printTile)
+    echo $m.heroes[4]
     let dir = bot.decide(m)
     params="&dir=" & $dir
     finished = m.turn >= m.maxTurns
