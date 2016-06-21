@@ -3,32 +3,43 @@ import json
 
 import seq2d
 
-type Tile* = enum
-  IMPASS,
-  EMPTY,
-  HERO_1,
-  HERO_2,
-  HERO_3,
-  HERO_4,
-  MINE_0,
-  MINE_1,
-  MINE_2,
-  MINE_3,
-  MINE_4,
-  TAVERN
+#
+# Types
+#
 
-type Pos* = object
-    x*,y* :int
+type Tile* = enum
+  tIMPASS,
+  tEMPTY,
+  tHERO_1,
+  tHERO_2,
+  tHERO_3,
+  tHERO_4,
+  tMINE_0,
+  tMINE_1,
+  tMINE_2,
+  tMINE_3,
+  tMINE_4,
+  tTAVERN
 
 type Hero* = object
     name*: string
     elo*: int
+    life*, gold*, mineCount*: int
     pos*, spawnPos*: Pos
-    lastDir: string
+    lastDir*: string
+
+type Mine* = object
+  pos*: Pos
+  owner*: int
+
+type Tavern* = object
+  pos*: Pos
 
 type Map* = object
     turn*, maxTurns*: int
     heroes*: array[1..4, Hero]
+    mines*: seq[Mine]
+    taverns*: seq[Tavern]
     grid*: Seq2D[Tile]
 
 type Dir* = enum
@@ -36,40 +47,26 @@ type Dir* = enum
 
 const allDirs* = [ Stay, North, South, West, East ]
 
-const str_tile = @{ "##": IMPASS, "  ": EMPTY, "[]": TAVERN, "$-": MINE_0, "$1": MINE_1, "$2": MINE_2, "$3": MINE_3, "$4": MINE_4, "@1": HERO_1, "@2": HERO_2, "@3": HERO_3, "@4": HERO_4 }
-
-proc parseTile(t_str: string): Tile =
-     case t_str:
-     of "##": result = IMPASS
-     of "  ": result = EMPTY
-     of "[]": result = TAVERN
-     of "$-": result = MINE_0
-     of "$1": result = MINE_1
-     of "$2": result = MINE_2
-     of "$3": result = MINE_3
-     of "$4": result = MINE_4
-     of "@1": result = HERO_1
-     of "@2": result = HERO_2
-     of "@3": result = HERO_3
-     of "@4": result = HERO_4
-     else: raise newException(ValueError, "strange tile")
-
-proc printTile(tile: Tile): string =
-     case tile:
-     of IMPASS: result = "##"
-     of EMPTY: result  = "  "
-     of TAVERN: result = "[]"
-     of MINE_0: result = "$-"
-     of MINE_1: result = "$1"
-     of MINE_2: result = "$2"
-     of MINE_3: result = "$3"
-     of MINE_4: result = "$4"
-     of HERO_1: result = "@1"
-     of HERO_2: result = "@2"
-     of HERO_3: result = "@3"
-     of HERO_4: result = "@4"
+#
+# Parsing
+#
 
 import macros
+
+const str_tile:seq[(string, Tile)] = @{ "##": tIMPASS, "  ": tEMPTY, "[]": tTAVERN, "$-": tMINE_0, "$1": tMINE_1, "$2": tMINE_2, "$3": tMINE_3, "$4": tMINE_4, "@1": tHERO_1, "@2": tHERO_2, "@3": tHERO_3, "@4": tHERO_4 }
+
+proc parseTile(t_str: string): Tile =
+  for p in items(str_tile):
+    if t_str == p[0]:
+      return p[1]
+  raise newException(ValueError, "strange tile str" & t_str)
+
+proc printTile(tile: Tile): string =
+  for p in items(str_tile):
+      if tile == p[1]:
+        return p[0]
+  raise newException(ValueError, "strange tile")
+
 macro stringify(n: expr): string =
   result = newNimNode(nnkStmtList, n)
   result.add(toStrLit(n))
@@ -99,12 +96,15 @@ proc parseMap(js: JsonNode) : Map =
      let g = js["game"]
      var map : Map
 
+     # turns
      parse_int(map, turn, g)
      parse_int(map, maxTurns, g)
 
+     # heroes
      for i in 1..4:
          map.heroes[i] = parseHero(g["heroes"][i-1])
 
+     #grid
      let b = g["board"]
      let tiles = b["tiles"].getStr()
      let size:int = tiles.len() div 2
@@ -112,12 +112,22 @@ proc parseMap(js: JsonNode) : Map =
      let num_cols:int = size div num_rows
 
      map.grid = newSeq2D[Tile](num_cols, num_rows)
+     map.mines = @[]
+     map.taverns = @[]
 
      var k = 0
-     for x in 0..num_cols-1:
-         for y in 0..num_rows-1:
-             map.grid[x,y] = parseTile(tiles[k..k+1])
-             k = k + 2
+     for xx in 0..num_cols-1:
+       for yy in 0..num_rows-1:
+         let tile = parseTile(tiles[k..k+1])
+         map.grid[xx,yy] = tile
+         case tile:
+           of tMINE_0..tMINE_4:
+             map.mines.add(Mine(pos: Pos(x:xx,y:yy), owner: ord(tile) - ord(tMINE_0)))
+           of tTavern:
+             map.taverns.add(Tavern(pos: Pos(x:xx,y:yy)))
+           else: discard
+
+         k = k + 2
 
      return map
 
@@ -126,6 +136,9 @@ proc loadMap(path: string): Map =
   result = parseMap(js)
 
 #
+# Convenience
+#
+
 # Server communications
 #
 

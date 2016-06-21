@@ -1,3 +1,6 @@
+type Pos* = object
+    x*,y* :int
+
 type Seq2D*[T] = object
      size_x: int
      size_y: int
@@ -9,8 +12,14 @@ proc newSeq2D*[T](x: int, y: int): Seq2D[T] =
 proc Idx*(arr: Seq2D, x:int, y:int): int {.inline.} =
      return y * arr.size_y + x
 
+proc Idx*(arr: Seq2D, p: Pos): int {.inline.} =
+     return p.y * arr.size_y + p.x
+
 proc `[]`*[T](arr: Seq2D[T], x:int, y:int):T =
      return arr.grid[arr.Idx(x,y)]
+
+proc `[]`*[T](arr: Seq2D[T], p:Pos):T =
+  return arr.grid[arr.Idx(p)]
 
 proc `[]=`*[T](arr: var Seq2D[T], x:int, y:int, value:T): void =
      assert(x < arr.size_x)
