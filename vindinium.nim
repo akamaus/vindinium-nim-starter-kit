@@ -21,6 +21,13 @@ type Tile* = enum
   tMINE_4,
   tTAVERN
 
+proc isHero*(t:Tile):bool {.inline.} =
+  case t:
+    of tHERO_1..tHERO_4:
+      result = true
+    else:
+      result = false
+
 type Hero* = object
     name*: string
     elo*: int
@@ -38,6 +45,7 @@ type Tavern* = object
 type Map* = object
     turn*, maxTurns*: int
     heroes*: array[1..4, Hero]
+    hero*: Hero
     mines*: seq[Mine]
     taverns*: seq[Tavern]
     grid*: Seq2D[Tile]
@@ -46,6 +54,17 @@ type Dir* = enum
   Stay, North, South, West, East
 
 const allDirs* = [ Stay, North, South, West, East ]
+
+proc getDir*(p1,p2:Pos): Dir =
+  if p2.x == p1.x - 1 and p2.y == p1.y:
+    result = North
+  elif p2.x == p1.x + 1 and p2.y == p1.y:
+    result = South
+  elif p2.x == p1.x and p2.y == p1.y - 1:
+    result = West
+  elif p2.x == p1.x and p2.y == p1.y + 1:
+    result = East
+  else: raise newException(ValueError, "leap detected: " & $p1 & " to " & $p2)
 
 #
 # Parsing
@@ -103,6 +122,7 @@ proc parseMap(js: JsonNode) : Map =
      # heroes
      for i in 1..4:
          map.heroes[i] = parseHero(g["heroes"][i-1])
+     map.hero = map.heroes[js["hero"]["id"].getNum()]
 
      #grid
      let b = g["board"]
@@ -156,7 +176,7 @@ import httpclient
 proc run_training*(bot: Bot) =
   var finished = false
   var game_url = train_url
-  var params = "&map=m1&turns=5"
+  var params = "&map=m1&turns=50"
   while not finished:
     let js_str = postContent(url = game_url,
                              extraHeaders = "Content-Type: application/x-www-form-urlencoded",
@@ -166,6 +186,7 @@ proc run_training*(bot: Bot) =
     let m = parseMap(js)
     game_url = js["playUrl"].getStr()
     m.grid.Print(printTile)
+    echo $m.hero
     echo $m.heroes[4]
     let dir = bot.decide(m)
     params="&dir=" & $dir

@@ -27,11 +27,26 @@ proc `[]=`*[T](arr: var Seq2D[T], x:int, y:int, value:T): void =
      arr.grid[arr.Idx(x,y)] = value
 
 proc Print*[T](arr: Seq2D[T], prn: proc(elt:T): string): void =
-     for y in 0..arr.size_y-1:
-          for x in 0..arr.size_x-1:
-              stdout.write(prn(arr[x,y]))
-              stdout.write(" ")
-          stdout.write("\n")
+  for x in 0..arr.size_x-1:
+    for y in 0..arr.size_y-1:
+      stdout.write(prn(arr[x,y]))
+      stdout.write(" ")
+    stdout.write("\n")
+
+iterator neighs*[T](g:Seq2D[T], p: Pos): Pos =
+  let inc_x = p.x + 1
+  let dec_x = p.x - 1
+  let inc_y = p.y + 1
+  let dec_y = p.y - 1
+
+  if dec_x >= 0:
+    yield Pos(x:dec_x, y:p.y)
+  if inc_x < g.size_x:
+    yield Pos(x:inc_x, y:p.y)
+  if dec_y >= 0:
+    yield Pos(x:p.x, y:dec_y)
+  if inc_y < g.size_y:
+    yield Pos(x:p.x, y:inc_y)
 
 when isMainModule:
      var s = newSeq2D[string](3,3)
