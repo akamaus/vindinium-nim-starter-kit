@@ -29,6 +29,7 @@ proc isHero*(t:Tile):bool {.inline.} =
       result = false
 
 type Hero* = object
+    id*: int
     name*: string
     elo*: int
     life*, gold*, mineCount*: int
@@ -101,9 +102,12 @@ proc parsePos(node:JsonNode): Pos =
   parse_int(result, y, node)
 
 proc parseHero(node: JsonNode): Hero =
+  parse_int(result, id, node)
   parse_str(result, name, node)
   if node.hasKey("elo"):
     parse_int(result, elo, node)
+  parse_int(result, life, node)
+  parse_int(result, gold, node)
   if node.hasKey("lastDir"):
     parse_str(result, lastDir, node)
   else:

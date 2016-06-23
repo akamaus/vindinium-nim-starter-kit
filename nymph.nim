@@ -1,4 +1,5 @@
 import astar,hashes
+import strutils
 
 import vindinium
 import seq2d
@@ -20,19 +21,35 @@ proc cost(m:Map, p1:Pos, p2:Pos): int =
 proc heuristic(m:Map, p1:Pos, p2:Pos): int =
   result = manhattan[Pos,int](p1,p2)
 
-template astar_path(m:Map, p1:Pos, p2:Pos): Pos =
-  path[Map,Pos,int](m, p1, p2)
-
- 
-proc nymph_bot(m:Map):Dir =
+proc astar_path(m:Map, p1:Pos, p2:Pos): seq[Pos] =
+  result = newSeq[Pos]()
   var d = 0
-  for p in astar_path(m, m.hero.pos, m.heroes[4].pos):
-    echo $p
-    if d == 1:
-      result = getDir(m.hero.pos, p)
+  for p in path[Map,Pos,int](m, p1, p2):
+    if d >= 1:
+      result.add(p)
     d += 1
-  echo "Moving " & $result
 
+proc find_nearest[T](m:Map, p: Pos, objs:openArray[T], pred:proc(o:T):bool): T =
+  var nearest:T
+  var nearest_dist = 100000
+  for o in objs:
+    if not pred(o):
+      continue
+    let p = astar_path(m,p, o.pos)
+    if p.len < nearest_dist:
+      nearest = o
+      nearest_dist = p.len
+  result = nearest
+
+proc nymph_bot(m:Map):Dir =
+  let me = m.hero
+
+  let tgt = find_nearest[Hero](m, me.pos, m.heroes, proc(h:Hero): bool = me.id != h.id )
+
+  let p = astar_path(m, m.hero.pos, tgt.pos)
+  let d = getDir(m.hero.pos, p[0])
+  echo format("Chasing $1; Moving $2", tgt.id, d)
+  result = d
 
 let nymph = Bot(
       name: "Nymph",
