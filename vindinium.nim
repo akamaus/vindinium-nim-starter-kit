@@ -166,18 +166,21 @@ proc loadMap(path: string): Map =
 # Server communications
 #
 
-type Decide* = proc(m:Map):Dir
+type Bot* = concept b
+  name is string
+  key is string
+  decide(b, Map) is Dir
 
-type Bot* = object
+type StatelessBot* = object
      name*: string
      key*: string
-     decide*: Decide
+     decide*: proc(b:StatelessBot, m:Map):Dir
 
 const train_url = "http://vindinium.org/api/training"
 
 import httpclient
 
-proc run_training*(bot: Bot) =
+proc run_training*[B:Bot](bot: B) =
   var finished = false
   var game_url = train_url
   var params = "&map=m1&turns=50"
@@ -191,7 +194,7 @@ proc run_training*(bot: Bot) =
     game_url = js["playUrl"].getStr()
     echo $m.hero
     echo $m.heroes[4]
-    let dir = bot.decide(m)
+    let dir = bot.decide(bot,m)
     params="&dir=" & $dir
     finished = m.turn >= m.maxTurns
 
