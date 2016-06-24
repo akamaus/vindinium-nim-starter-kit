@@ -26,10 +26,11 @@ proc `[]=`*[T](arr: var Seq2D[T], x:int, y:int, value:T): void =
      assert(y < arr.size_y)
      arr.grid[arr.Idx(x,y)] = value
 
-proc Print*[T](arr: Seq2D[T], prn: proc(elt:T): string): void =
+proc Print*[T](arr: Seq2D[T], prn: proc(pos:Pos, elt:T): string): void =
   for x in 0..arr.size_x-1:
     for y in 0..arr.size_y-1:
-      stdout.write(prn(arr[x,y]))
+      let p = Pos(x:x,y:y)
+      stdout.write(prn(p, arr[p]))
       stdout.write(" ")
     stdout.write("\n")
 

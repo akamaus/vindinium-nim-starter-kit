@@ -1,8 +1,7 @@
 import astar,hashes
 import strutils
 
-import vindinium
-import seq2d
+import vindinium, seq2d
 
 # for A-Star
 proc hash(p:Pos): Hash =
@@ -29,6 +28,8 @@ proc astar_path(m:Map, p1:Pos, p2:Pos): seq[Pos] =
       result.add(p)
     d += 1
 
+# General logic
+
 proc find_nearest[T](m:Map, p: Pos, objs:openArray[T], pred:proc(o:T):bool): T =
   var nearest:T
   var nearest_dist = 100000
@@ -46,10 +47,20 @@ proc nymph_bot(m:Map):Dir =
 
   let tgt = find_nearest[Hero](m, me.pos, m.heroes, proc(h:Hero): bool = me.id != h.id )
 
-  let p = astar_path(m, m.hero.pos, tgt.pos)
-  let d = getDir(m.hero.pos, p[0])
+  let path = astar_path(m, m.hero.pos, tgt.pos)
+  let d = getDir(m.hero.pos, path[0])
   echo format("Chasing $1; Moving $2", tgt.id, d)
   result = d
+
+  proc printer(pos:Pos, t:Tile): string =
+    result = printTile(t)
+    if t == tEmpty:
+      for i,p in path:
+        if p == pos:
+          result = $(i+1)
+          break
+
+  Print(m.grid,printer)
 
 let nymph = Bot(
       name: "Nymph",

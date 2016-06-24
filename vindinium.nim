@@ -81,7 +81,7 @@ proc parseTile(t_str: string): Tile =
       return p[1]
   raise newException(ValueError, "strange tile str" & t_str)
 
-proc printTile(tile: Tile): string =
+proc printTile*(tile: Tile): string =
   for p in items(str_tile):
       if tile == p[1]:
         return p[0]
@@ -189,7 +189,6 @@ proc run_training*(bot: Bot) =
     echo js_str
     let m = parseMap(js)
     game_url = js["playUrl"].getStr()
-    m.grid.Print(printTile)
     echo $m.hero
     echo $m.heroes[4]
     let dir = bot.decide(m)
