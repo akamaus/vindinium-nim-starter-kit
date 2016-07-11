@@ -42,7 +42,7 @@ proc find_nearest[T](m:Map, p: Pos, objs:openArray[T], pred:proc(o:T):bool): T =
       nearest_dist = p.len
   result = nearest
 
-proc nymph_bot(b:StatelessBot, m:Map):Dir =
+proc decide*(b:StatelessBot, m:Map):Dir =
   let me = m.hero
 
   let tgt = find_nearest[Hero](m, me.pos, m.heroes, proc(h:Hero): bool = me.id != h.id )
@@ -65,6 +65,6 @@ proc nymph_bot(b:StatelessBot, m:Map):Dir =
 let nymph = StatelessBot(
       name: "Nymph",
       key: readFile("nymph.key"),
-      decide: nymph_bot)
+)
 
 run_training[StatelessBot](nymph)
